@@ -602,7 +602,7 @@ __run_secure_function
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 __run_start_script "$@" |& tee -a "/data/logs/entrypoint.log" &>/dev/null
 if [ "$?" -ne 0 ] && [ -n "$EXEC_CMD_BIN" ]; then
-  eval echo "Failed to execute: $EXEC_CMD_BIN $EXEC_CMD_ARGS" |& tee -a "/data/logs/entrypoint.log" "$LOG_DIR/init.txt"
+  eval echo "Failed to execute: ${cmd_exec:-$EXEC_CMD_BIN $EXEC_CMD_ARGS}" |& tee -a "/data/logs/entrypoint.log" "$LOG_DIR/init.txt"
   SERVICE_EXIT_CODE=10
   SERVICE_IS_RUNNING="false"
   rm -Rf "$SERVICE_PID_FILE"
