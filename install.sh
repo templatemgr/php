@@ -52,13 +52,16 @@ git clone "$GIT_REPO" "$TMP_DIR" || exit 1
 [ -d "/etc/$TEMPLATE_NAME" ] && rm -Rf /etc/${TEMPLATE_NAME:?}/* || true
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Main application
-mkdir -p "/etc/$TEMPLATE_NAME"
-[ -d "$DEFAULT_CONF_DIR" ] || mkdir -p "$DEFAULT_CONF_DIR"
+mkdir -p "/etc/$TEMPLATE_NAME" "$DEFAULT_CONF_DIR" "$INIT_DIR"
 [ -f "$TMP_DIR/config/.gitkeep" ] && rm -Rf "$TMP_DIR/config/.gitkeep" || true
 [ -f "$TMP_DIR/init-scripts/.gitkeep" ] && rm -Rf "$TMP_DIR/init-scripts/.gitkeep" || true
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-[ -e "$TMP_DIR/config" ] && cp -Rf "$TMP_DIR/config/." "$DEFAULT_CONF_DIR/" || true
-[ -e "$TMP_DIR/init-scripts" ] && cp -Rf "$TMP_DIR/init-scripts/." "$INIT_DIR/" || true
+[ -d "$TMP_DIR/config" ] && cp -Rf "$TMP_DIR/config/." "/etc/$TEMPLATE_NAME/" || true
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+[ -d "$TMP_DIR/config" ] && cp -Rf "$TMP_DIR/config/." "$DEFAULT_CONF_DIR/" || true
+[ -d "$TMP_DIR/init-scripts" ] && cp -Rf "$TMP_DIR/init-scripts/." "$INIT_DIR/" || true
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+[ -d "$INIT_DIR" ] && chmod -Rf 755 "$INIT_DIR"/*.sh || true
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 [ -f "$DEFAULT_CONF_DIR/$CONFIG_CHECK_FILE" ] || INSTALL_SH_EXIT_STATUS=1
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
