@@ -59,7 +59,17 @@ mkdir -p "/etc/$TEMPLATE_NAME" "$DEFAULT_CONF_DIR" "$INIT_DIR"
 [ -d "$TMP_DIR/config" ] && cp -Rf "$TMP_DIR/config/." "/etc/$TEMPLATE_NAME/" || true
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 [ -d "$TMP_DIR/config" ] && cp -Rf "$TMP_DIR/config/." "$DEFAULT_CONF_DIR/" || true
-[ -d "$TMP_DIR/init-scripts" ] && cp -Rf "$TMP_DIR/init-scripts/." "$INIT_DIR/" || true
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+if [ -d "$TMP_DIR/init-scripts" ]; then
+  init_scripts="$(ls -A "$TMP_DIR/init-scripts/" | grep '^' || false)"
+  if [ -n "$init_scripts" ]; then
+    for init_script in $; do
+      if [ ! -f "$INIT_DIR/$init_script" ]; then
+        cp -Rf "$TMP_DIR/init-scripts/$init_script" "$INIT_DIR/$init_script" || true
+      fi
+    done
+  fi
+fi
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 [ -d "$INIT_DIR" ] && chmod -Rf 755 "$INIT_DIR"/*.sh || true
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
