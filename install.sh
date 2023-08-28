@@ -84,7 +84,7 @@ fi
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 [ -d "$TMP_DIR" ] && rm -Rf "$TMP_DIR"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-if [ ! -f "$DEFAULT_CONF_DIR/$CONFIG_CHECK_FILE" ]; then
+if [ -n "$CONFIG_CHECK_FILE" ] && [ ! -f "$DEFAULT_CONF_DIR/$CONFIG_CHECK_FILE" ]; then
   echo "Can not find a config file in $DEFAULT_CONF_DIR"
   INSTALL_SH_EXIT_STATUS=1
 fi
