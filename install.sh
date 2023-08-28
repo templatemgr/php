@@ -25,7 +25,7 @@
 # shellcheck disable=SC2199
 # shellcheck disable=SC2317
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-BASH_SET_SAVED_OPTIONS=$(set +o) && set +e -x
+# BASH_SET_SAVED_OPTIONS=$(set +o) && set +e -x
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # check for command
 __cmd_exists() { command "$1" >/dev/null 2>&1 || return 1; }
@@ -90,6 +90,7 @@ if [ -n "$CONFIG_CHECK_FILE" ] && [ ! -f "$DEFAULT_CONF_DIR/$CONFIG_CHECK_FILE" 
 fi
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # End application
+# eval "$BASH_SET_SAVED_OPTIONS"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # lets exit with code
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
