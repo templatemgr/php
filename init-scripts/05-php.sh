@@ -580,6 +580,8 @@ else
 fi
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Change to working directory
+[ "$HOME" = "/root" ] && [ "$RUNAS_USER" != "root" ] && __cd "/tmp" && echo "Changed to $PWD"
+[ "$HOME" = "/root" ] && [ "$SERVICE_USER" != "root" ] && __cd "/tmp" && echo "Changed to $PWD"
 [ -n "$WORK_DIR" ] && [ -n "$EXEC_CMD_BIN" ] && __cd "$WORK_DIR" && echo "Changed to $PWD"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # show init message
