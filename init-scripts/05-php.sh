@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-##@Version           :  202308280045-git
+##@Version           :  202308281720-git
 # @@Author           :  Jason Hempstead
 # @@Contact          :  jason@casjaysdev.pro
-# @@License          :  LICENSE.md
-# @@ReadME           :  05-php.sh --help
+# @@License          :  WTFPL
+# @@ReadME           :  php.sh --help
 # @@Copyright        :  Copyright: (c) 2023 Jason Hempstead, Casjays Developments
-# @@Created          :  Monday, Aug 28, 2023 00:45 EDT
-# @@File             :  05-php.sh
+# @@Created          :  Monday, Aug 28, 2023 17:20 EDT
+# @@File             :  php.sh
 # @@Description      :
 # @@Changelog        :  New script
 # @@TODO             :  Better documentation
@@ -83,6 +83,7 @@ CONF_DIR="/config/php" # set config directory
 # set the containers etc directory
 ETC_DIR="/etc/php"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+TMP_DIR="/tmp/php"
 RUN_DIR="/run/php"       # set scripts pid dir
 LOG_DIR="/data/logs/php" # set log directory
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -108,14 +109,14 @@ __file_exists_with_content "${ROOT_FILE_PREFIX}/${SERVICE_NAME}_name" && root_us
 __file_exists_with_content "${ROOT_FILE_PREFIX}/${SERVICE_NAME}_pass" && root_user_pass="$(<"${ROOT_FILE_PREFIX}/${SERVICE_NAME}_pass")"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # port which service is listening on
-SERVICE_PORT=""
+SERVICE_PORT="9000"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # User to use to launch service - IE: postgres
 RUNAS_USER="root" # normally root
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # User and group in which the service switches to - IE: nginx,apache,mysql,postgres
-SERVICE_USER="php"  # execute command as another user
-SERVICE_GROUP="php" # Set the service group
+SERVICE_USER="apache"  # execute command as another user
+SERVICE_GROUP="apache" # Set the service group
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Set user and group ID
 SERVICE_UID="0" # set the user id
@@ -140,17 +141,16 @@ IS_DATABASE_SERVICE="no"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Additional variables
 
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Set to yes to enable the built in php dev server
-PHP_DEV_SERVER_START=""
-PHP_DEV_SERVER_PORT="80"
+PHP_DEV_SERVER_START="${PHP_DEV_SERVER_START:-yes}"
+PHP_DEV_SERVER_PORT="${PHP_DEV_SERVER_PORT:-80}"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Specifiy custom directories to be created
 ADD_APPLICATION_FILES=""
-ADD_APPLICATION_DIRS="$TMP_DIR/uploads $TMP_DIR/sessions $TMP_DIR/cache"
+ADD_APPLICATION_DIRS=""
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 APPLICATION_FILES="$LOG_DIR/php.log"
-APPLICATION_DIRS="$RUN_DIR $ETC_DIR $CONF_DIR $LOG_DIR"
+APPLICATION_DIRS="$RUN_DIR $ETC_DIR $CONF_DIR $LOG_DIR $TMP_DIR"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Additional config dirs - will be Copied to /etc/$name
 ADDITIONAL_CONFIG_DIRS=""
@@ -235,16 +235,9 @@ __update_conf_files() {
     fi
   fi
   # replace variables
-  if [ "$SERVICE_USER" = "root" ] && [ "$RUNAS_USER" = "root" ]; then
-    sed -i 's|user.*=.*|user = '$SERVICE_USER'|g' "$ETC_DIR"/*/www.conf
-    sed -i 's|group.*=.*|group = '$SERVICE_GROUP'|g' "$ETC_DIR"/*/www.conf
-  else
-    sed -i 's|user.*=.*|;user = '$SERVICE_USER'|g' "$ETC_DIR"/*/www.conf
-    sed -i 's|group.*=.*|;group = '$SERVICE_GROUP'|g' "$ETC_DIR"/*/www.conf
-  fi
+  # __replace "" "" "$CONF_DIR/php.conf"
   # replace variables recursively
-  __find_replace "REPLACE_WWW_USER" "${SERVICE_USER:-root}" "$CONF_DIR"
-  __find_replace "REPLACE_WWW_GROUP" "${SERVICE_GROUP:-root}" "$CONF_DIR"
+  #  __find_replace "" "" "$CONF_DIR"
 
   # execute if directory is empty
   #__is_dir_empty "" && true || false
@@ -268,12 +261,6 @@ __pre_execute() {
   #__is_dir_empty "" && true || false
 
   # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  # Copy /config to /etc
-  for config_2_etc in $CONF_DIR $ADDITIONAL_CONFIG_DIRS; do
-    __initialize_system_etc "$config_2_etc" |& tee -a "$LOG_DIR/init.txt" &>/dev/null |& tee -a "$LOG_DIR/init.txt" &>/dev/null
-  done
-  unset config_2_etc ADDITIONAL_CONFIG_DIRS
-  # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   # create user if needed
   __create_service_user "$SERVICE_USER" "$SERVICE_GROUP" "${WORK_DIR:-/home/$SERVICE_USER}" "${SERVICE_UID:-3000}" "${SERVICE_GID:-3000}"
 
@@ -283,6 +270,12 @@ __pre_execute() {
 
   # Run Custom command
 
+  # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  # Copy /config to /etc
+  for config_2_etc in $CONF_DIR $ADDITIONAL_CONFIG_DIRS; do
+    __initialize_system_etc "$config_2_etc" |& tee -a "$LOG_DIR/init.txt" &>/dev/null |& tee -a "$LOG_DIR/init.txt" &>/dev/null
+  done
+  unset config_2_etc ADDITIONAL_CONFIG_DIRS
   # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   # set user on files/folders
   if [ -n "$SERVICE_USER" ] && [ "$SERVICE_USER" != "root" ]; then
@@ -305,16 +298,19 @@ __pre_execute() {
   fi
 
   # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  # Run checks
-  __run_pre_execute_checks
-
-  # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  # Replace the applications user and group
+  __find_replace "REPLACE_WWW_USER" "${SERVICE_USER:-root}" "$ETC_DIR"
+  __find_replace "REPLACE_WWW_GROUP" "${SERVICE_GROUP:-${SERVICE_USER:-root}}" "$ETC_DIR"
+  __find_replace "REPLACE_APP_USER" "${SERVICE_USER:-root}" "$ETC_DIR"
+  __find_replace "REPLACE_APP_GROUP" "${SERVICE_GROUP:-${SERVICE_USER:-root}}" "$ETC_DIR"
   # Replace variables
   __initialize_replace_variables "$ETC_DIR"
   __initialize_replace_variables "$CONF_DIR"
   __initialize_replace_variables "$WWW_ROOT_DIR"
-  __find_replace "REPLACE_WWW_USER" "${SERVICE_USER:-root}" "$ETC_DIR"
-  __find_replace "REPLACE_WWW_GROUP" "${SERVICE_GROUP:-root}" "$ETC_DIR"
+  # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  # Run checks
+  __run_pre_execute_checks
+
   # unset unneeded variables
   unset filesperms filename
   # Lets wait a few seconds before continuing
@@ -332,8 +328,7 @@ __post_execute() {
   # execute commands
   (
     sleep 20
-    [ "$PHP_DEV_SERVER_START" = "yes" ] && php -S 0.0.0.0:$PHP_DEV_SERVER_PORT -t "$WWW_ROOT_DIR"
-
+    true
   ) |& tee -a "$LOG_DIR/init.txt" &>/dev/null &
   return $exitCode
 }
@@ -375,9 +370,6 @@ __create_service_env() {
 #ENV_EXEC_CMD_ARGS="${ENV_EXEC_CMD_ARGS:-$EXEC_CMD_ARGS}"            # command arguments
 #ENV_EXEC_CMD_NAME="$(basename "$EXEC_CMD_BIN")"                     # set the binary name
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# Enable dev server
-#PHP_DEV_SERVER_START="${ENABLE_PHP_DEV_SERVER:-${ENV_PHP_DEV_SERVER_START:-$PHP_DEV_SERVER_START}}"
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # root/admin user info [password/random]
 #ENV_ROOT_USER_NAME="${ENV_ROOT_USER_NAME:-$PHP_ROOT_USER_NAME}"   # root user name
 #ENV_ROOT_USER_PASS="${ENV_ROOT_USER_NAME:-$PHP_ROOT_PASS_WORD}"   # root user password
@@ -396,12 +388,14 @@ EOF
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # script to start server
 __run_start_script() {
+  local runExitCode=0
+  local workdir="$(eval echo "${WORK_DIR:-}")"                   # expand variables
   local cmd="$(eval echo "${EXEC_CMD_BIN:-}")"                   # expand variables
   local args="$(eval echo "${EXEC_CMD_ARGS:-}")"                 # expand variables
   local name="$(eval echo "${EXEC_CMD_NAME:-}")"                 # expand variables
   local pre="$(eval echo "${EXEC_PRE_SCRIPT:-}")"                # expand variables
-  local workdir="$(eval echo "${WORK_DIR:-}")"                   # expand variables
-  local lc_type="$(eval echo "${LC_ALL:-${LC_CTYPE:-$LANG}}")"   # expand variables
+  local extra_env="$(eval echo "${CMD_ENV//,/ }")"               # expand variables
+  local lc_type="$(eval echo "${LANG:-${LC_ALL:-$LC_CTYPE}}")"   # expand variables
   local home="$(eval echo "${workdir//\/root/\/tmp\/docker}")"   # expand variables
   local path="$(eval echo "$PATH")"                              # expand variables
   local message="$(eval echo "")"                                # expand variables
@@ -421,9 +415,9 @@ __run_start_script() {
     [ "$home" = "/root" ] && home="/tmp/docker"
     [ "$home" = "$workdir" ] && workdir=""
     # create needed directories
-    [ -n "$home" ] && { [ -d "$home" ] || mkdir -p "$home"; }
-    [ -n "$workdir" ] && { [ -d "$workdir" ] || mkdir -p "$workdir" || workdir="/tmp"; }
-    [ -n "$workdir" ] && __cd "$workdir" || { [ -n "$home" ] && __cd "$home"; } || __cd "/tmp"
+    [ -n "$home" ] && { [ -d "$home" ] || { mkdir -p "$home" && chown -Rf $SERVICE_USER:$SERVICE_GROUP "$home"; }; }
+    [ -n "$workdir" ] && { [ -d "$workdir" ] || { mkdir -p "$workdir" && chown -Rf $SERVICE_USER:$SERVICE_GROUP "$workdir"; }; }
+
     [ "$user" != "root " ] && [ -d "$home" ] && chmod -f 777 "$home"
     [ "$user" != "root " ] && [ -d "$workdir" ] && chmod -f 777 "$workdir"
     # check and exit if already running
@@ -431,18 +425,27 @@ __run_start_script() {
       echo "$name is already running" >&2
       exit 0
     else
-      if [ -n "$pre" ] && [ -f "$pre" ]; then
-        cmd_exec="$pre $cmd $args"
+      # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+      # show message if env exists
+      if [ -n "$cmd_exec" ]; then
+        [ -n "$SERVICE_USER" ] && echo "Setting up $cmd_exec to run as $SERVICE_USER" || SERVICE_USER="root"
+        [ -n "$SERVICE_PORT" ] && echo "$name will be running on $SERVICE_PORT" || SERVICE_PORT=""
+      fi
+      if [ -n "$pre" ] && [ -n "$(command -v "$pre" 2>/dev/null)" ]; then
+        export cmd_exec="$pre $cmd $args"
         message="Starting service: $name $args through $pre"
       else
-        cmd_exec="$cmd $args"
+        export cmd_exec="$cmd $args"
         message="Starting service: $name $args"
       fi
+      __cd "${workdir:-$home}"
       echo "$message"
       su_cmd touch "$SERVICE_PID_FILE"
-      __post_execute 2>"/dev/stderr" 2>&1 |& tee -a "$LOG_DIR/init.txt" &>/dev/null &
+      __post_execute |& tee -a "$LOG_DIR/init.txt" &>/dev/null &
       if [ "$RESET_ENV" = "yes" ]; then
-        su_cmd env -i HOME="$home" LC_CTYPE="$lc_type" PATH="$path" HOSTNAME="$sysname" USER="$user" ${CMD_ENV//,/ } sh -c "cmd_exec" || return 10
+        su_cmd env -i HOME="$home" LC_CTYPE="$lc_type" PATH="$path" HOSTNAME="$sysname" USER="${SERVICE_USER:-$RUNAS_USER}" $extra_env sh -c "$cmd_exec" ||
+          eval env -i HOME="$home" LC_CTYPE="$lc_type" PATH="$path" HOSTNAME="$sysname" USER="${SERVICE_USER:-$RUNAS_USER}" $extra_env sh -c "$cmd_exec" ||
+          return 10
       else
         eval "$cmd_exec" || return 10
       fi
@@ -456,7 +459,7 @@ __run_secure_function() {
     for filesperms in "${USER_FILE_PREFIX}"/*; do
       if [ -e "$filesperms" ]; then
         chmod -Rf 600 "$filesperms"
-        chown -Rf root:root "$filesperms"
+        chown -Rf $SERVICE_USER:$SERVICE_USER "$filesperms"
       fi
     done |& tee -a "$LOG_DIR/init.txt" &>/dev/null
   fi
@@ -464,7 +467,7 @@ __run_secure_function() {
     for filesperms in "${ROOT_FILE_PREFIX}"/*; do
       if [ -e "$filesperms" ]; then
         chmod -Rf 600 "$filesperms"
-        chown -Rf root:root "$filesperms"
+        chown -Rf $SERVICE_USER:$SERVICE_USER "$filesperms"
       fi
     done |& tee -a "$LOG_DIR/init.txt" &>/dev/null
   fi
@@ -518,15 +521,15 @@ SERVICE_PID_NUMBER="$(__pgrep)"                                            # che
 EXEC_CMD_BIN="$(type -P "$EXEC_CMD_BIN" || echo "$EXEC_CMD_BIN")"          # set full path
 EXEC_PRE_SCRIPT="$(type -P "$EXEC_PRE_SCRIPT" || echo "$EXEC_PRE_SCRIPT")" # set full path
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-PHP_DEV_SERVER_START="${ENABLE_PHP_DEV_SERVER:-${ENV_PHP_DEV_SERVER_START:-$PHP_DEV_SERVER_START}}"
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # create auth directories
 [ -n "$USER_FILE_PREFIX" ] && { [ -d "$USER_FILE_PREFIX" ] || mkdir -p "$USER_FILE_PREFIX"; }
 [ -n "$ROOT_FILE_PREFIX" ] && { [ -d "$ROOT_FILE_PREFIX" ] || mkdir -p "$ROOT_FILE_PREFIX"; }
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 [ "$IS_WEB_SERVER" = "yes" ] && RESET_ENV="yes"
 [ "$IS_DATABASE_SERVICE" = "yes" ] && RESET_ENV="no"
-[ -z "$RUNAS_USER" ] && RUNAS_USER="${SERVICE_USER:-root}"
+[ -n "$RUNAS_USER" ] || RUNAS_USER="root"
+[ -n "$SERVICE_USER" ] || SERVICE_USER="${RUNAS_USER:-root}"
+[ -n "$SERVICE_GROUP" ] || SERVICE_GROUP="${RUNAS_USER:-root}"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Allow per init script usernames and passwords
 __file_exists_with_content "$ETC_DIR/auth/user/name" && user_name="$(<"$ETC_DIR/auth/user/name")"
@@ -539,6 +542,20 @@ user_name="${ENV_USER_NAME:-$user_name}"
 user_pass="${ENV_USER_PASS:-$user_pass}"
 root_user_name="${ENV_ROOT_USER_NAME:-$root_user_name}"
 root_user_pass="${ENV_ROOT_USER_PASS:-$root_user_pass}"
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# Env vars from dockermgr script
+SERVICE_UID="${ENV_PUID:-${PUID:-$SERVICE_UID}}"
+SERVICE_GID="${ENV_PGID:-${PGID:-$SERVICE_GID}}"
+EMAIL_RELAY="${ENV_EMAIL_RELAY:-$EMAIL_RELAY}"
+EMAIL_ADMIN="${ENV_EMAIL_ADMIN:-$EMAIL_ADMIN}"
+EMAIL_DOMAIN="${ENV_EMAIL_DOMAIN:-$EMAIL_DOMAIN}"
+SERVICE_PROTOCOL="${ENV_CONTAINER_PROTOCOL:-$CONTAINER_PROTOCOL}"
+WWW_ROOT_DIR="${CONTAINER_HTML_ENV:-${ENV_WWW_ROOT_DIR:-$WWW_ROOT_DIR}}"
+DATABASE_DIR="${ENV_DATABASE_DIR_CUSTOM:-${DATABASE_DIR_CUSTOM:-${DATABASE_DIR_SQLITE:-$DATABASE_DIR}}}"
+user_name="${ENV_DATABASE_USER_NORMAL:-${DATABASE_USER_NORMAL:-${CONTAINER_ENV_USER_NAME:-$user_name}}}"
+user_pass="${ENV_DATABASE_PASS_NORMAL:-${DATABASE_PASS_NORMAL:-${CONTAINER_ENV_PASS_NAME:-$user_pass}}}"
+root_user_name="${ENV_DATABASE_USER_ROOT:-${DATABASE_USER_ROOT:-$root_user_name}}"
+root_user_pass="${ENV_DATABASE_PASS_ROOT:-${DATABASE_PASS_ROOT:-$root_user_pass}}"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # set password to random if variable is random
 if [ "$user_pass" = "random" ]; then
@@ -558,14 +575,8 @@ if [ "$1" = "check" ]; then
   exit $?
 fi
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# show message if env exists
-if [ -n "$EXEC_CMD_BIN" ]; then
-  [ -n "$RUNAS_USER" ] && echo "Setting up $EXEC_CMD_BIN to run as $RUNAS_USER" || RUNAS_USER="root"
-  [ -n "$SERVICE_PORT" ] && echo "${EXEC_CMD_NAME:-$EXEC_CMD_BIN} will be running on $SERVICE_PORT" || SERVICE_PORT=""
-fi
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # set switch user command
-if [ "$RUNAS_USER" != "root" ]; then
+if [ "$RUNAS_USER" = "root" ]; then
   su_cmd() { eval "$*" || return 1; }
 elif [ "$(builtin type -P gosu)" ]; then
   su_cmd() { gosu $RUNAS_USER "$@" || return 1; }
@@ -603,9 +614,9 @@ __run_secure_function
 __run_start_script "$@" |& tee -a "/data/logs/entrypoint.log" &>/dev/null
 if [ "$?" -ne 0 ] && [ -n "$EXEC_CMD_BIN" ]; then
   eval echo "Failed to execute: ${cmd_exec:-$EXEC_CMD_BIN $EXEC_CMD_ARGS}" |& tee -a "/data/logs/entrypoint.log" "$LOG_DIR/init.txt"
+  rm -Rf "$SERVICE_PID_FILE"
   SERVICE_EXIT_CODE=10
   SERVICE_IS_RUNNING="false"
-  rm -Rf "$SERVICE_PID_FILE"
 fi
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 exit $SERVICE_EXIT_CODE
