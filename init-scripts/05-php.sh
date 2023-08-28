@@ -147,7 +147,7 @@ PHP_DEV_SERVER_PORT="80"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Specifiy custom directories to be created
 ADD_APPLICATION_FILES=""
-ADD_APPLICATION_DIRS=""
+ADD_APPLICATION_DIRS="$TMP_DIR/uploads $TMP_DIR/sessions $TMP_DIR/cache"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 APPLICATION_FILES="$LOG_DIR/php.log"
 APPLICATION_DIRS="$RUN_DIR $ETC_DIR $CONF_DIR $LOG_DIR"
