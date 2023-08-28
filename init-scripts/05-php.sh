@@ -142,7 +142,7 @@ IS_DATABASE_SERVICE="no"
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Set to yes to enable the built in php dev server
-PHP_DEV_SERVER_START="yes"
+PHP_DEV_SERVER_START=""
 PHP_DEV_SERVER_PORT="80"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Specifiy custom directories to be created
@@ -235,7 +235,13 @@ __update_conf_files() {
     fi
   fi
   # replace variables
-  # __replace "" "" "$ETC_DIR/php.conf"
+  if [ "$SERVICE_USER" = "root" ] && [ "$RUNAS_USER" = "root" ]; then
+    sed -i 's|user.*=.*|user = '$SERVICE_USER'|g' "$ETC_DIR"/*/www.conf
+    sed -i 's|group.*=.*|group = '$SERVICE_GROUP'|g' "$ETC_DIR"/*/www.conf
+  else
+    sed -i 's|user.*=.*|;user = '$SERVICE_USER'|g' "$ETC_DIR"/*/www.conf
+    sed -i 's|group.*=.*|;group = '$SERVICE_GROUP'|g' "$ETC_DIR"/*/www.conf
+  fi
   # replace variables recursively
   __find_replace "REPLACE_WWW_USER" "${SERVICE_USER:-root}" "$CONF_DIR"
   __find_replace "REPLACE_WWW_GROUP" "${SERVICE_GROUP:-root}" "$CONF_DIR"
@@ -264,7 +270,7 @@ __pre_execute() {
   # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   # Copy /config to /etc
   for config_2_etc in $CONF_DIR $ADDITIONAL_CONFIG_DIRS; do
-    __initialize_system_etc "$config_2_etc"
+    __initialize_system_etc "$config_2_etc" |& tee -a "$LOG_DIR/init.txt" &>/dev/null |& tee -a "$LOG_DIR/init.txt" &>/dev/null
   done
   unset config_2_etc ADDITIONAL_CONFIG_DIRS
   # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -368,6 +374,9 @@ __create_service_env() {
 #ENV_EXEC_CMD_BIN="${ENV_EXEC_CMD_BIN:-$EXEC_CMD_BIN}"               # command to execute
 #ENV_EXEC_CMD_ARGS="${ENV_EXEC_CMD_ARGS:-$EXEC_CMD_ARGS}"            # command arguments
 #ENV_EXEC_CMD_NAME="$(basename "$EXEC_CMD_BIN")"                     # set the binary name
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# Enable dev server
+#PHP_DEV_SERVER_START="${ENABLE_PHP_DEV_SERVER:-${ENV_PHP_DEV_SERVER_START:-$PHP_DEV_SERVER_START}}"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # root/admin user info [password/random]
 #ENV_ROOT_USER_NAME="${ENV_ROOT_USER_NAME:-$PHP_ROOT_USER_NAME}"   # root user name
@@ -508,6 +517,8 @@ EXEC_CMD_ARGS="${ENV_EXEC_CMD_ARGS:-$EXEC_CMD_ARGS}"                       # com
 SERVICE_PID_NUMBER="$(__pgrep)"                                            # check if running
 EXEC_CMD_BIN="$(type -P "$EXEC_CMD_BIN" || echo "$EXEC_CMD_BIN")"          # set full path
 EXEC_PRE_SCRIPT="$(type -P "$EXEC_PRE_SCRIPT" || echo "$EXEC_PRE_SCRIPT")" # set full path
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+PHP_DEV_SERVER_START="${ENABLE_PHP_DEV_SERVER:-${ENV_PHP_DEV_SERVER_START:-$PHP_DEV_SERVER_START}}"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # create auth directories
 [ -n "$USER_FILE_PREFIX" ] && { [ -d "$USER_FILE_PREFIX" ] || mkdir -p "$USER_FILE_PREFIX"; }
