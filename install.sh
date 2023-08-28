@@ -63,7 +63,7 @@ mkdir -p "/etc/$TEMPLATE_NAME" "$DEFAULT_CONF_DIR" "$INIT_DIR"
 if [ -d "$TMP_DIR/init-scripts" ]; then
   init_scripts="$(ls -A "$TMP_DIR/init-scripts/" | grep '^' || false)"
   if [ -n "$init_scripts" ]; then
-    for init_script in $; do
+    for init_script in $init_scripts; do
       if [ ! -f "$INIT_DIR/$init_script" ]; then
         cp -Rf "$TMP_DIR/init-scripts/$init_script" "$INIT_DIR/$init_script" || true
       fi
