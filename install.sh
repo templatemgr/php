@@ -47,9 +47,12 @@ GIT_REPO="https://github.com/templatemgr/$TEMPLATE_NAME"
 [ "$TEMPLATE_NAME" = "sample-template" ] && exit 1
 [ -n "$DEFAULT_CONF_DIR" ] && DEFAULT_CONF_DIR="$DEFAULT_CONF_DIR/$TEMPLATE_NAME" || DEFAULT_CONF_DIR="$CONFIG_DIR"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-git clone "$GIT_REPO" "$TMP_DIR" || exit 1
-[ -f "/etc/$TEMPLATE_NAME" ] && rm -Rf /etc/${TEMPLATE_NAME:?} || true
-[ -d "/etc/$TEMPLATE_NAME" ] && rm -Rf /etc/${TEMPLATE_NAME:?}/* || true
+git clone -q "$GIT_REPO" "$TMP_DIR" || exit 1
+if [ -f "/etc/$TEMPLATE_NAME" ]; then
+  rm -Rf /etc/${TEMPLATE_NAME:?}
+elif [ -d "/etc/$TEMPLATE_NAME" ]; then
+  rm -Rf /etc/${TEMPLATE_NAME:?}/*
+fi
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Main application
 mkdir -p "/etc/$TEMPLATE_NAME" "$DEFAULT_CONF_DIR" "$INIT_DIR"
@@ -65,6 +68,7 @@ if [ -d "$TMP_DIR/init-scripts" ]; then
   if [ -n "$init_scripts" ]; then
     for init_script in $init_scripts; do
       if [ ! -f "$INIT_DIR/$init_script" ]; then
+        echo "Installing  $INIT_DIR/$init_script"
         cp -Rf "$TMP_DIR/init-scripts/$init_script" "$INIT_DIR/$init_script" || true
       fi
     done
