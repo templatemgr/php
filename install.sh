@@ -1,5 +1,5 @@
-#!/usr/bin/env bash
-# shellcheck shell=bash
+#!/usr/bin/env sh
+# shellcheck shell=sh
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ##@Version           :  202308271918-git
 # @@Author           :  Jason Hempstead
@@ -25,17 +25,9 @@
 # shellcheck disable=SC2199
 # shellcheck disable=SC2317
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# script variables
-APPNAME="$(basename "$0" 2>/dev/null)"
-VERSION="202308271918-git"
-RUN_USER="$USER"
-SET_UID="$(id -u)"
-SCRIPT_SRC_DIR="${BASH_SOURCE%/*}"
-INSTALL_SH_CWD="$(realpath "$PWD")"
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # check for command
-__cmd_exists() { which $1 >/dev/null 2>&1 || return 1; }
-__function_exists() { builtin type $1 >/dev/null 2>&1 || return 1; }
+__cmd_exists() { command "$1" >/dev/null 2>&1 || return 1; }
+__function_exists() { command -v "$1" 2>&1 | grep -q "is a function" || return 1; }
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # custom functions
 
@@ -44,15 +36,22 @@ INSTALL_SH_EXIT_STATUS=0
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Define Variables
 TEMPLATE_NAME="php"
+CONFIG_CHECK_FILE=""
 TMP_DIR="/tmp/config-$TEMPLATE_NAME"
 GIT_REPO="https://github.com/templatemgr/$TEMPLATE_NAME"
 CONFIG_DIR="/usr/local/share/template-files/config/$TEMPLATE_NAME"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+[ "$TEMPLATE_NAME" = "sample-template" ] && exit 1
+[ -n "$DEFAULT_CONF_DIR" ] && DEFAULT_CONF_DIR="$DEFAULT_CONF_DIR/$TEMPLATE_NAME"||DEFAULT_CONF_DIR="$CONFIG_DIR"
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Main application
-[ -d "$CONFIG_DIR" ] && mkdir -p "$CONFIG_DIR"
+mkdir -p "/etc/$TEMPLATE_NAME"
+rm -Rf /etc/${TEMPLATE_NAME:?}/*
+[ -d "$DEFAULT_CONF_DIR" ] || mkdir -p "$DEFAULT_CONF_DIR"
 git clone -q "$GIT_REPO" "$TMP_DIR/" || exit 1
 [ -f "$TMP_DIR/config/.gitkeep" ] && rm -Rf "$TMP_DIR/config/.gitkeep"
-cp -Rf "$TMP_DIR/config/." "$CONFIG_DIR/" && [ -f "$CONFIG_DIR/php.ini" ] || INSTALL_SH_EXIT_STATUS=1
+cp -Rf "$TMP_DIR/config/." "$DEFAULT_CONF_DIR/" && [ -f "$DEFAULT_CONF_DIR/$CONFIG_CHECK_FILE" ] || INSTALL_SH_EXIT_STATUS=1
+
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # End application
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
