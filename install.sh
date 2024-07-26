@@ -61,7 +61,7 @@ WWW_ROOT_DIR="${WWW_ROOT_DIR:-/usr/share/httpd/default}"
 INIT_DIR="/usr/local/etc/docker/init.d"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Set this if a file should exist - comma seperated list
-CONFIG_CHECK_FILE="$CONFIG_DIR/php.ini"
+CONFIG_CHECK_FILE="$CONFIG_DIR/php/php.ini"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 GIT_REPO="https://github.com/templatemgr/$TEMPLATE_NAME"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -134,7 +134,8 @@ fi
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # custom operations
-[ "$TEMPLATE_NAME" = "php" ] && { [ -f "/config/env/php.sh" ] || echo "PHP_DEV_SERVER_START=\"${PHP_DEV_SERVER_START:-yes}\"" >/config/env/php.sh; }
+[ -d "/usr/local/share/template-files/config/env" ] || mkdir -p "/usr/local/share/template-files/config/env"
+[ "$TEMPLATE_NAME" = "php" ] && { [ -f "/usr/local/share/template-files/config/env/php.sh" ] || echo "PHP_DEV_SERVER_START=\"${PHP_DEV_SERVER_START:-yes}\"" >/usr/local/share/template-files/config/env/php.sh; }
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 CONFIG_CHECK_FILE="${CONFIG_CHECK_FILE//,/ }"
 if [ -n "$CONFIG_CHECK_FILE" ]; then
