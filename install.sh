@@ -1,5 +1,5 @@
-#!/usr/bin/env sh
-# shellcheck shell=sh
+#!/usr/bin/env bsh
+# shellcheck shell=bash
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ##@Version           :  202308271918-git
 # @@Author           :  Jason Hempstead
@@ -25,46 +25,85 @@
 # shellcheck disable=SC2199
 # shellcheck disable=SC2317
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# BASH_SET_SAVED_OPTIONS=$(set +o) && set +e -x
+# setup debugging - https://www.gnu.org/software/bash/manual/html_node/The-Set-Builtin.html
+[ -f "/config/.debug" ] && [ -z "$DEBUGGER_OPTIONS" ] && export DEBUGGER_OPTIONS="$(cat "/config/.debug")" || DEBUGGER_OPTIONS="${DEBUGGER_OPTIONS:-}"
+{ [ "$DEBUGGER" = "on" ] || [ -f "/config/.debug" ]; } && echo "Enabling debugging" && set -xo pipefail -x$DEBUGGER_OPTIONS && export DEBUGGER="on" || set -o pipefail
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# BASH_SET_SAVED_OPTIONS=$(set +o)
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # check for command
 __cmd_exists() { command "$1" >/dev/null 2>&1 || return 1; }
 __function_exists() { command -v "$1" 2>&1 | grep -q "is a function" || return 1; }
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# Relative find functions
+__find_file_relative() { find "$1"/* -not -path '*env/*' -not -path '.git*' -type f 2>/dev/null | sed 's|'$1'/||g' | sort -u | grep -v '^$' | grep '^' || false; }
+__find_directory_relative() { find "$1"/* -not -path '*env/*' -not -path '.git*' -type d 2>/dev/null | sed 's|'$1'/||g' | sort -u | grep -v '^$' | grep '^' || false; }
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# get and compare versions
+__get_version() { printf '%s\n' "${1:-$(cat "/dev/stdin")}" | awk -F. '{ printf("%d%03d\n", $1,$2); }'; }
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # custom functions
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# Set default exit code
 INSTALL_SH_EXIT_STATUS=0
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Define Variables
-TEMPLATE_NAME="php"
-CONFIG_CHECK_FILE="php.ini"
+EXPECTED_OS="alpine"
+TEMPLATE_NAME="sample-template"
+OVER_WRITE_INIT="yes"
+CONFIG_DIR="/usr/local/share/template-files/config"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 TMP_DIR="/tmp/config-$TEMPLATE_NAME"
-CONFIG_DIR="/usr/local/share/template-files/config/$TEMPLATE_NAME"
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+WWW_ROOT_DIR="${WWW_ROOT_DIR:-/usr/share/httpd/default}"
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 INIT_DIR="/usr/local/etc/docker/init.d"
-OVER_WRITE_INIT="no"
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# Set this if a file should exist - comma seperated list
+CONFIG_CHECK_FILE="$CONFIG_DIR/php.ini"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 GIT_REPO="https://github.com/templatemgr/$TEMPLATE_NAME"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-[ "$TEMPLATE_NAME" = "sample-template" ] && exit 1
-[ -n "$DEFAULT_CONF_DIR" ] && DEFAULT_CONF_DIR="$DEFAULT_CONF_DIR/$TEMPLATE_NAME" || DEFAULT_CONF_DIR="$CONFIG_DIR"
+OS_RELEASE="$(grep -si "$EXPECTED_OS" /etc/*-release* | sed 's|.*=||g;s|"||g' | head -n1)"
+[ -n "$OS_RELEASE" ] || { echo "Unexpected OS: ${OS_RELEASE:-N/A}" && exit 1; }
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-git clone -q "$GIT_REPO" "$TMP_DIR" || exit 1
-if [ -f "/etc/$TEMPLATE_NAME" ]; then
-  rm -Rf /etc/${TEMPLATE_NAME:?}
-elif [ -d "/etc/$TEMPLATE_NAME" ]; then
-  rm -Rf /etc/${TEMPLATE_NAME:?}/*
-fi
+# Custom env
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+[ "$TEMPLATE_NAME" != "sample-template" ] || { echo "Please set variable TEMPLATE_NAME" && exit 1; }
+git clone -q "$GIT_REPO" "$TMP_DIR" || { echo "Failed to clone the repo" exit 1; }
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Main application
-mkdir -p "/etc/$TEMPLATE_NAME" "$DEFAULT_CONF_DIR" "$INIT_DIR"
-[ -f "$TMP_DIR/config/.gitkeep" ] && rm -Rf "$TMP_DIR/config/.gitkeep" || true
-[ -f "$TMP_DIR/init-scripts/.gitkeep" ] && rm -Rf "$TMP_DIR/init-scripts/.gitkeep" || true
+mkdir -p "$CONFIG_DIR" "$INIT_DIR"
+find "$TMP_DIR/" -iname '.gitkeep' -exec rm -f {} \;
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-[ -d "$TMP_DIR/config" ] && cp -Rf "$TMP_DIR/config/." "/etc/$TEMPLATE_NAME/" || true
+# custom pre execution commands
+[ -d "/usr/local/bin" ] || mkdir -p "/usr/local/bin"
+[ -d "/usr/local/etc/docker/functions" ] || mkdir -p "/usr/local/etc/docker/functions"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-[ -d "$TMP_DIR/config" ] && cp -Rf "$TMP_DIR/config/." "$DEFAULT_CONF_DIR/" || true
+get_dir_list="$(__find_directory_relative "$TMP_DIR/config" || false)"
+if [ -n "$get_dir_list" ]; then
+  for dir in $get_dir_list; do
+    mkdir -p "$CONFIG_DIR/$dir" /etc/$dir
+  done
+fi
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+get_file_list="$(__find_file_relative "$TMP_DIR/config" || false)"
+if [ -n "$get_file_list" ]; then
+  for conf in $get_file_list; do
+    if [ -f "/etc/$conf" ]; then
+      rm -Rf /etc/${conf:?}
+    fi
+    if [ -d "$TMP_DIR/config/$conf" ]; then
+      cp -Rf "$TMP_DIR/config/$conf/." "/etc/$conf/"
+      cp -Rf "$TMP_DIR/config/$conf/." "$CONFIG_DIR/$conf/"
+    elif [ -e "$TMP_DIR/config/$config" ]; then
+      cp -Rf "$TMP_DIR/config/$conf" "/etc/$conf"
+      cp -Rf "$TMP_DIR/config/$conf" "$CONFIG_DIR/$conf"
+    fi
+  done
+fi
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 if [ -d "$TMP_DIR/init-scripts" ]; then
   init_scripts="$(ls -A "$TMP_DIR/init-scripts/" | grep '^' || false)"
@@ -80,14 +119,36 @@ if [ -d "$TMP_DIR/init-scripts" ]; then
   fi
 fi
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+if [ -d "$TMP_DIR/www" ]; then
+  rm -Rf "$WWW_ROOT_DIR"
+  mkdir -p "$WWW_ROOT_DIR"
+  cp -Rf "$TMP_DIR/www/." "$WWW_ROOT_DIR/"
+fi
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 [ -d "$INIT_DIR" ] && chmod -Rf 755 "$INIT_DIR"/*.sh || true
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-[ -d "$TMP_DIR" ] && rm -Rf "$TMP_DIR"
+[ -d "$TMP_DIR/functions" ] && cp -Rf "$TMP_DIR/functions/." "/usr/local/etc/docker/functions/" || true
+[ -d "$TMP_DIR/bin" ] && chmod -Rf 755 "$TMP_DIR/bin/" && cp -Rf "$TMP_DIR/bin/." "/usr/local/bin/" || true
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-if [ -n "$CONFIG_CHECK_FILE" ] && [ ! -f "$DEFAULT_CONF_DIR/$CONFIG_CHECK_FILE" ]; then
-  echo "Can not find a config file in $DEFAULT_CONF_DIR"
-  INSTALL_SH_EXIT_STATUS=1
+# Other files to copy to system
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# custom operations
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+CONFIG_CHECK_FILE="${CONFIG_CHECK_FILE//,/ }"
+if [ -n "$CONFIG_CHECK_FILE" ]; then
+  for config_file in $CONFIG_CHECK_FILE; do
+    if [ ! -f "$config_file" ]; then
+      echo "Can not find a config file: $config_file"
+      INSTALL_SH_EXIT_STATUS=1
+    fi
+  done
+else
+  echo "CONFIG_CHECK_FILE not enabled"
 fi
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+[ -d "$TMP_DIR" ] && rm -Rf "$TMP_DIR"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # End application
 # eval "$BASH_SET_SAVED_OPTIONS"
