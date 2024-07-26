@@ -50,7 +50,7 @@ INSTALL_SH_EXIT_STATUS=0
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Define Variables
 EXPECTED_OS="alpine"
-TEMPLATE_NAME="sample-template"
+TEMPLATE_NAME="php"
 OVER_WRITE_INIT="yes"
 CONFIG_DIR="/usr/local/share/template-files/config"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
