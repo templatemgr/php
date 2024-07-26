@@ -159,8 +159,9 @@ PATH="./bin:$PATH"
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Set to yes to enable the built in php dev server
-PHP_DEV_SERVER_START="${PHP_DEV_SERVER_START:-yes}"
+PHP_DEV_SERVER_START="${PHP_DEV_SERVER_START:-no}"
 PHP_DEV_SERVER_PORT="${PHP_DEV_SERVER_PORT:-80}"
+PHP_DEV_SERVER_ROOT=""
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Specifiy custom directories to be created
 ADD_APPLICATION_FILES=""
@@ -275,7 +276,11 @@ __post_execute() {
     __banner "$postMessageST"
     # commands to execute
     {
-      true
+      if [ -z "$PHP_DEV_SERVER_ROOT" ]; then
+        { [ -d "/data/htdocs/www" ] && PHP_DEV_SERVER_ROOT="/data/htdocs/www"; } || { [ -d "/data/www" ] && PHP_DEV_SERVER_ROOT="/data/www"; }
+      fi
+      PHP_DEV_SERVER_ROOT="${PHP_DEV_SERVER_ROOT:-/usr/share/httpd}"
+      [ "$PHP_DEV_SERVER_START" = "yes" ] && { [ -n "$PHP_DEV_SERVER_ROOT" ] && mkdir -p "$PHP_DEV_SERVER_ROOT" && __start_php_dev_server "$PHP_DEV_SERVER_ROOT" "$PHP_DEV_SERVER_START"; }
     }
     # set exitCode
     retVal=$?
