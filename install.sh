@@ -134,7 +134,7 @@ fi
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # custom operations
-
+[ "$TEMPLATE_NAME" = "php" ] && { [ -f "/config/env/php.sh" ] || echo "PHP_DEV_SERVER_START=\"${PHP_DEV_SERVER_START:-yes}\"" >/config/env/php.sh; }
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 CONFIG_CHECK_FILE="${CONFIG_CHECK_FILE//,/ }"
 if [ -n "$CONFIG_CHECK_FILE" ]; then
