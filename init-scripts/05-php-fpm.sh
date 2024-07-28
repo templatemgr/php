@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-##@Version           :  202407261342-git
+##@Version           :  202407281713-git
 # @@Author           :  Jason Hempstead
 # @@Contact          :  jason@casjaysdev.pro
 # @@License          :  LICENSE.md
 # @@ReadME           :  05-php-fpm.sh --help
 # @@Copyright        :  Copyright: (c) 2024 Jason Hempstead, Casjays Developments
-# @@Created          :  Friday, Jul 26, 2024 13:42 EDT
+# @@Created          :  Sunday, Jul 28, 2024 17:13 EDT
 # @@File             :  05-php-fpm.sh
 # @@Description      :
 # @@Changelog        :  New script
@@ -35,7 +35,7 @@ trap 'retVal=$?;[ "$SERVICE_IS_RUNNING" != "yes" ] && [ -f "$SERVICE_PID_FILE" ]
 export PATH="/usr/local/etc/docker/bin:/usr/local/bin:/usr/bin:/usr/sbin:/bin:/sbin"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 SCRIPT_FILE="$0"
-SERVICE_NAME="php-fpm"
+SERVICE_NAME="php"
 SCRIPT_NAME="$(basename "$SCRIPT_FILE" 2>/dev/null)"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # exit if __start_init_scripts function hasn't been Initialized
@@ -121,14 +121,14 @@ user_name="${PHP_USER_NAME:-}"      # normal user name
 user_pass="${PHP_USER_PASS_WORD:-}" # normal user password
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # port which service is listening on
-SERVICE_PORT="9000"
+SERVICE_PORT=""
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # User to use to launch service - IE: postgres
 RUNAS_USER="root" # normally root
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # User and group in which the service switches to - IE: nginx,apache,mysql,postgres
-SERVICE_USER="php"  # execute command as another user
-SERVICE_GROUP="php" # Set the service group
+SERVICE_USER="root"  # execute command as another user
+SERVICE_GROUP="root" # Set the service group
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Set user and group ID
 SERVICE_UID="0" # set the user id
@@ -157,11 +157,6 @@ PATH="./bin:$PATH"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Additional variables
 
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# Set to yes to enable the built in php dev server
-PHP_DEV_SERVER_START="${PHP_DEV_SERVER_START:-no}"
-PHP_DEV_SERVER_PORT="${PHP_DEV_SERVER_PORT:-80}"
-PHP_DEV_SERVER_ROOT=""
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Specifiy custom directories to be created
 ADD_APPLICATION_FILES=""
@@ -280,7 +275,7 @@ __post_execute() {
         { [ -d "/data/htdocs/www" ] && PHP_DEV_SERVER_ROOT="/data/htdocs/www"; } || { [ -d "/data/www" ] && PHP_DEV_SERVER_ROOT="/data/www"; }
       fi
       PHP_DEV_SERVER_ROOT="${PHP_DEV_SERVER_ROOT:-/usr/share/httpd}"
-      [ "$PHP_DEV_SERVER_START" = "yes" ] && { [ -n "$PHP_DEV_SERVER_ROOT" ] && mkdir -p "$PHP_DEV_SERVER_ROOT" && __start_php_dev_server "$PHP_DEV_SERVER_ROOT" "$PHP_DEV_SERVER_START"; }
+      [ "$PHP_DEV_SERVER_START" = "yes" ] && { [ -n "$PHP_DEV_SERVER_ROOT" ] && mkdir -p "$PHP_DEV_SERVER_ROOT" && __start_php_dev_server "$PHP_DEV_SERVER_ROOT" "$PHP_DEV_SERVER_START" || return 1; }
     }
     # set exitCode
     retVal=$?
@@ -402,8 +397,8 @@ __run_start_script() {
         execute_command="$(__trim "$su_exec $env_command $cmd_exec")"
         if [ ! -f "$START_SCRIPT" ]; then
           cat <<EOF >"$START_SCRIPT"
-#!/usr/bin/env sh
-trap 'exitCode=\$?; [ \$retVal -ne 0 ] && [ -f "\$SERVICE_PID_FILE" ] && rm -Rf "\$SERVICE_PID_FILE";exit \$exitCode' ERR
+#!/usr/bin/env bash
+trap 'exitCode=\$?;[ \$exitCode -ne 0 ] && [ -f "\$SERVICE_PID_FILE" ] && rm -Rf "\$SERVICE_PID_FILE";exit \$exitCode' EXIT
 #
 set -Eeo pipefail
 # Setting up $cmd to run as ${SERVICE_USER:-root} with env
@@ -412,9 +407,10 @@ cmd="$cmd"
 SERVICE_PID_FILE="$SERVICE_PID_FILE"
 $execute_command 2>"/dev/stderr" >>"$LOG_DIR/$SERVICE_NAME.log" &
 execPid=\$!
-sleep 5
-[ -n "\$execPid"  ] && echo \$execPid >"\$SERVICE_PID_FILE"
-ps ax | awk '{print \$1}' | grep -v grep | grep \$execPid$ && retVal=0
+sleep 10
+[ -n "\$execPid"  ] && echo "\$execPid" >"\$SERVICE_PID_FILE"
+ps ax | awk '{print \$1}' | grep -v grep | grep "\$execPid$" && retVal=0
+[ "\$retVal" = 0 ] && echo "\$cmd has been started" || echo "\$cmd has failed to start - args: \$args" >&2
 exit \$retVal
 
 EOF
@@ -423,8 +419,8 @@ EOF
         if [ ! -f "$START_SCRIPT" ]; then
           execute_command="$(__trim "$su_exec $cmd_exec")"
           cat <<EOF >"$START_SCRIPT"
-#!/usr/bin/env sh
-trap 'exitCode=\$?; [ \$retVal -ne 0 ] && [ -f "\$SERVICE_PID_FILE" ] && rm -Rf "\$SERVICE_PID_FILE";exit \$exitCode' ERR
+#!/usr/bin/env bash
+trap 'exitCode=\$?;[ \$exitCode -ne 0 ] && [ -f "\$SERVICE_PID_FILE" ] && rm -Rf "\$SERVICE_PID_FILE";exit \$exitCode' EXIT
 #
 set -Eeo pipefail
 # Setting up $cmd to run as ${SERVICE_USER:-root}
@@ -433,9 +429,10 @@ cmd="$cmd"
 SERVICE_PID_FILE="$SERVICE_PID_FILE"
 $execute_command 2>>"/dev/stderr" >>"$LOG_DIR/$SERVICE_NAME.log" &
 execPid=\$!
-sleep 5
+sleep 10
 [ -n "\$execPid"  ] && echo \$execPid >"\$SERVICE_PID_FILE"
 ps ax | awk '{print \$1}' | grep -v grep | grep \$execPid$ && retVal=0
+[ "\$retVal" = 0 ] && echo "\$cmd has been started" || echo "\$cmd has failed to start - args: \$args" >&2
 exit \$retVal
 
 EOF
