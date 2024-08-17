@@ -121,7 +121,7 @@ user_name="${PHP_USER_NAME:-}"      # normal user name
 user_pass="${PHP_USER_PASS_WORD:-}" # normal user password
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # port which service is listening on
-SERVICE_PORT=""
+SERVICE_PORT="9000"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # User to use to launch service - IE: postgres
 RUNAS_USER="root" # normally root
@@ -156,7 +156,8 @@ PATH="./bin:$PATH"
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Additional variables
-
+PHP_DEV_SERVER_PORT="80"
+PHP_DEV_SERVER_START="yes"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Specifiy custom directories to be created
 ADD_APPLICATION_FILES=""
@@ -172,7 +173,7 @@ ADDITIONAL_CONFIG_DIRS=""
 CMD_ENV=""
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Overwrite based on file/directory
-
+[ -d "/data/htdocs" ] && WWW_ROOT_DIR="/data/htdocs"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Per Application Variables or imports
 
@@ -262,7 +263,7 @@ __post_execute() {
   local postMessageST="Running post commands for $SERVICE_NAME"   # message to show at start
   local postMessageEnd="Finished post commands for $SERVICE_NAME" # message to show at completion
   local sysname="${SERVER_NAME:-${FULL_DOMAIN_NAME:-$HOSTNAME}}"  # set hostname
-
+  PHP_DEV_SERVER_ROOT="${PHP_DEV_SERVER_ROOT:-$WWW_ROOT_DIR}"
   # execute commands
   (
     # wait
@@ -409,7 +410,7 @@ $execute_command 2>"/dev/stderr" >>"$LOG_DIR/$SERVICE_NAME.log" &
 execPid=\$!
 sleep 10
 [ -n "\$execPid"  ] && echo "\$execPid" >"\$SERVICE_PID_FILE"
-ps ax | awk '{print \$1}' | grep -v grep | grep "\$execPid$" && retVal=0
+ps ax | awk '{print \$1}' | grep -v grep | grep -q \$execPid$ && retVal=0
 [ "\$retVal" = 0 ] && echo "\$cmd has been started" || echo "\$cmd has failed to start - args: \$args" >&2
 exit \$retVal
 
@@ -573,9 +574,9 @@ else
 fi
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Change to working directory
-[ -n "$WORK_DIR" ] && [ -n "$EXEC_CMD_BIN" ] && [ "$PWD" != "$WORK_DIR" ] && __cd "$WORK_DIR" && echo "Changed to $PWD"
-[ -z "$WORK_DIR" ] && [ "$HOME" = "/root" ] && [ "$RUNAS_USER" != "root" ] && [ "$PWD" != "/tmp" ] && __cd "/tmp" && echo "Changed to $PWD"
-[ -z "$WORK_DIR" ] && [ "$HOME" = "/root" ] && [ "$SERVICE_USER" != "root" ] && [ "$PWD" != "/tmp" ] && __cd "/tmp" && echo "Changed to $PWD" && WORK_DIR="" || WORK_DIR="${WORK_DIR:-$PWD}"
+[ -n "$WORK_DIR" ] && [ -n "$EXEC_CMD_BIN" ] && [ "$PWD" != "$WORK_DIR" ] && __cd "$WORK_DIR" && echo "Setting the working directory to: $PWD"
+[ -z "$WORK_DIR" ] && [ "$HOME" = "/root" ] && [ "$RUNAS_USER" != "root" ] && [ "$PWD" != "/tmp" ] && __cd "/tmp" && echo "Setting the working directory to: $PWD"
+[ -z "$WORK_DIR" ] && [ "$HOME" = "/root" ] && [ "$SERVICE_USER" != "root" ] && [ "$PWD" != "/tmp" ] && __cd "/tmp" && echo "Setting the working directory to: $PWD" && WORK_DIR="" || WORK_DIR="${WORK_DIR:-$PWD}"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # show init message
 __pre_message
