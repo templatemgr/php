@@ -92,7 +92,7 @@ DATABASE_BASE_DIR="${DATABASE_BASE_DIR:-/data/db}"
 DATABASE_DIR="${DATABASE_DIR_PHP:-/data/db/sqlite}"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Set webroot
-WWW_ROOT_DIR="/usr/share/httpd/default"
+WWW_ROOT_DIR="/usr/local/share/httpd/default"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Default predefined variables
 DATA_DIR="/data/php"   # set data directory
@@ -275,7 +275,7 @@ __post_execute() {
       if [ -z "$PHP_DEV_SERVER_ROOT" ]; then
         { [ -d "/data/htdocs/www" ] && PHP_DEV_SERVER_ROOT="/data/htdocs/www"; } || { [ -d "/data/www" ] && PHP_DEV_SERVER_ROOT="/data/www"; }
       fi
-      PHP_DEV_SERVER_ROOT="${PHP_DEV_SERVER_ROOT:-/usr/share/httpd}"
+      PHP_DEV_SERVER_ROOT="${PHP_DEV_SERVER_ROOT:-/usr/local/share/httpd}"
       [ "$PHP_DEV_SERVER_START" = "yes" ] && { [ -n "$PHP_DEV_SERVER_ROOT" ] && mkdir -p "$PHP_DEV_SERVER_ROOT" && __start_php_dev_server "$PHP_DEV_SERVER_ROOT" "$PHP_DEV_SERVER_START" || return 1; }
     }
     # set exitCode
